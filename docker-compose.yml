@@ -1,0 +1,24 @@
+# PostGIS for production-grade geospatial queries (radius search, map clustering).
+# The core slice runs on SQLite without this; bring it up when you want the
+# real geo layer:  docker compose up -d db
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: eventscope-db
+    environment:
+      POSTGRES_USER: eventscope
+      POSTGRES_PASSWORD: eventscope
+      POSTGRES_DB: eventscope
+    ports:
+      - "5432:5432"
+    volumes:
+      - eventscope_pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventscope"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  eventscope_pgdata:

@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "type": "rich",
+  "provider_name": "Instagram",
+  "provider_url": "https://www.instagram.com",
+  "author_name": "barcultural.adrogue",
+  "author_url": "https://www.instagram.com/barcultural.adrogue",
+  "title": "Este viernes 17 de julio de 2026: Fiesta de música electrónica en el patio. Entrada libre hasta las 23h.",
+  "thumbnail_url": "https://scontent.cdninstagram.com/thumb.jpg",
+  "thumbnail_width": 640,
+  "thumbnail_height": 640,
+  "html": "<blockquote class=\"instagram-media\" data-instgrm-permalink=\"https://www.instagram.com/p/AbCdEf123/\"></blockquote>"
+}

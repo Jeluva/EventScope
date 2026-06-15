@@ -11,9 +11,11 @@ from eventscope.scrapers.venue_html import harvest_instagram_permalinks
 from .conftest import load_fixture
 
 
-def test_all_four_sources_registered():
+def test_all_sources_registered():
     names = set(list_scrapers())
-    assert {"eventbrite", "venue_html", "government", "instagram_oembed"} <= names
+    assert {
+        "eventbrite", "venue_html", "government", "instagram_oembed", "almirante_brown"
+    } <= names
 
 
 def test_eventbrite_parse():
@@ -82,6 +84,33 @@ def test_instagram_helpers():
     assert shortcode_from_permalink("https://example.com/nope") is None
     embed = fallback_embed_html("https://www.instagram.com/p/AbCdEf123/")
     assert "AbCdEf123/embed/" in embed
+
+
+def test_almirante_brown_parse():
+    raw = load_fixture("almirante_brown_response.json")
+    items = get_scraper("almirante_brown").parse(raw)
+    # Item with empty title is skipped
+    assert len(items) == 2
+
+    festival = items[0]
+    assert festival.source == "gov:brown"
+    assert festival.external_id == "13430"
+    assert festival.hints["date_text"] == "2026-06-12"
+    assert "Malvinas Argentinas" in festival.raw_text
+    assert festival.source_url == (
+        "https://www.brown.gob.ar/post_type_noticias/"
+        "malvinas-argentinas-celebra-sus-50-anos-con-musica-en-vivo-y-el-festival-de-pastelitos-criollos/"
+    )
+    assert "https://www.instagram.com/p/AbCdEf999/" in festival.payload["instagram_permalinks"]
+
+    recital = items[1]
+    assert "Indio Solari" in recital.raw_text
+    assert recital.hints["date_text"] == "2026-06-08"
+    assert recital.payload["instagram_permalinks"] == []
+
+
+def test_almirante_brown_is_discovery():
+    assert get_scraper("almirante_brown").discovery is True
 
 
 def test_harvest_instagram_permalinks_dedups():

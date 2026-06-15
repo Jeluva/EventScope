@@ -11,6 +11,9 @@ interface; the pipeline accepts any ``Geocoder`` so it can be injected in tests.
 from __future__ import annotations
 
 import abc
+import time
+
+import httpx
 
 
 class Geocoder(abc.ABC):
@@ -36,6 +39,69 @@ class StaticGeocoder(Geocoder):
         return self._table.get(query.strip().lower())
 
 
+class NominatimGeocoder(Geocoder):
+    """Free geocoder backed by OpenStreetMap Nominatim.
+
+    Nominatim's usage policy requires:
+    - A descriptive User-Agent header (not a generic library name)
+    - Max 1 request/second — enforced by ``_min_interval``
+
+    Country-code filter defaults to "ar" (Argentina) to avoid ambiguous matches
+    for local venue names that could match cities abroad.
+    """
+
+    _min_interval = 1.1  # seconds between requests (Nominatim ToS: max 1 req/s)
+
+    def __init__(
+        self,
+        user_agent: str,
+        base_url: str = "https://nominatim.openstreetmap.org",
+        countrycodes: str = "ar",
+    ) -> None:
+        self._base_url = base_url.rstrip("/")
+        self._countrycodes = countrycodes
+        self._headers = {"User-Agent": user_agent, "Accept-Language": "es"}
+        self._last_call: float = 0.0
+
+    def geocode(self, query: str) -> tuple[float, float] | None:
+        if not query or not query.strip():
+            return None
+
+        # Rate-limit: wait until 1.1 s have passed since last call.
+        elapsed = time.monotonic() - self._last_call
+        if elapsed < self._min_interval:
+            time.sleep(self._min_interval - elapsed)
+
+        try:
+            with httpx.Client(timeout=10.0, headers=self._headers) as client:
+                resp = client.get(
+                    f"{self._base_url}/search",
+                    params={
+                        "q": query,
+                        "format": "json",
+                        "limit": 1,
+                        "countrycodes": self._countrycodes,
+                    },
+                )
+                resp.raise_for_status()
+        except httpx.HTTPError:
+            return None
+        finally:
+            self._last_call = time.monotonic()
+
+        results = resp.json()
+        if not results:
+            return None
+        return float(results[0]["lat"]), float(results[0]["lon"])
+
+
 def get_geocoder() -> Geocoder:
-    # No external geocoding service wired by default (keeps the slice offline).
+    from .config import get_settings
+
+    s = get_settings()
+    if s.geocoder_provider == "nominatim":
+        return NominatimGeocoder(
+            user_agent=s.nominatim_user_agent,
+            base_url=s.nominatim_url,
+        )
     return NullGeocoder()

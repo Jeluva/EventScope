@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     # --- Embeddings for dedup: "stub" | "sentence-transformers" ---
     embedding_provider: str = "stub"
 
+    # --- Geocoding: "null" | "nominatim" ---
+    geocoder_provider: str = "null"
+    nominatim_user_agent: str = "EventScope/0.1 (+https://eventscope.app)"
+    nominatim_url: str = "https://nominatim.openstreetmap.org"
+
     # --- Source credentials (all optional) ---
     eventbrite_token: str = ""
     ig_access_token: str = ""

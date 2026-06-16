@@ -180,7 +180,8 @@ class _LLMExtractor(Extractor):  # pragma: no cover - live path only
     def extract(self, item: ScrapedItem) -> ExtractedEvent | None:
         raw = self._call(item)
         if raw is None:
-            return None
+            # LLM unavailable — fall back to offline heuristics so items aren't lost
+            return StubExtractor().extract(item)
         return self._parse_response(raw)
 
 

@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 from eventscope.geocoding import StaticGeocoder
 from eventscope.models import Event, RawEvent
-from eventscope.pipeline import enrich_from_instagram, run_items
+from eventscope.pipeline import enrich_from_instagram, purge_stale_events, run_items
 from eventscope.repository import events_within_radius
 from eventscope.scrapers import get_scraper
 
@@ -118,3 +118,32 @@ def test_geocoder_hook_makes_gov_events_map_visible(session):
     assert feria.lat == -34.7995
     hits = events_within_radius(session, -34.7998, -58.3897, 5.0)
     assert any(h.event.title == "Feria de Emprendedores" for h in hits)
+
+
+def test_purge_marks_stale_events_cancelled(session):
+    run_items(session, _all_items(), now=NOW)
+    active_before = session.scalar(
+        select(func.count()).select_from(Event).where(Event.status == "active")
+    )
+    assert active_before == 6
+
+    # Purge with a "now" far in the future so all events are stale.
+    far_future = dt.datetime(2030, 1, 1, tzinfo=dt.timezone.utc)
+    count = purge_stale_events(session, days=7, now=far_future)
+    assert count == 6
+    cancelled = session.scalar(
+        select(func.count()).select_from(Event).where(Event.status == "cancelled")
+    )
+    assert cancelled == 6
+
+
+def test_purge_dry_run_does_not_write(session):
+    run_items(session, _all_items(), now=NOW)
+    far_future = dt.datetime(2030, 1, 1, tzinfo=dt.timezone.utc)
+    count = purge_stale_events(session, days=7, dry_run=True, now=far_future)
+    assert count == 6
+    # Status unchanged
+    still_active = session.scalar(
+        select(func.count()).select_from(Event).where(Event.status == "active")
+    )
+    assert still_active == 6

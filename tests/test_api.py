@@ -76,3 +76,13 @@ def test_detail_and_404(client):
     eid = listing[0]["id"]
     assert client.get(f"/events/{eid}").json()["id"] == eid
     assert client.get("/events/999999").status_code == 404
+
+
+def test_admin_status(client):
+    resp = client.get("/admin/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["events_active"] == 2
+    assert data["raw_events"] == 2
+    assert isinstance(data["by_source"], list)
+    assert data["by_source"][0]["source"] == "eventbrite"

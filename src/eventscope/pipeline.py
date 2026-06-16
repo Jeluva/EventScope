@@ -252,3 +252,33 @@ def enrich_from_instagram(
         resolver = lambda pls: InstagramOembedScraper().enrich(pls)  # noqa: E731
     items = resolver(pending)
     return run_items(session, items, now=now, **run_kwargs)
+
+
+# ─── Stale event purge ────────────────────────────────────────────────────────
+
+def purge_stale_events(
+    session: Session,
+    *,
+    days: int = 7,
+    dry_run: bool = False,
+    now: dt.datetime | None = None,
+) -> int:
+    """Mark active events whose start time is > ``days`` days in the past as cancelled.
+
+    Returns the number of events affected. When ``dry_run=True`` the session is
+    not modified — the count is still returned so the CLI can report it.
+    """
+    cutoff = _aware(now or _utcnow()) - dt.timedelta(days=days)
+    stale = list(
+        session.scalars(
+            select(Event).where(
+                Event.status == "active",
+                Event.starts_at < cutoff,
+            )
+        )
+    )
+    if not dry_run:
+        for ev in stale:
+            ev.status = "cancelled"
+        session.flush()
+    return len(stale)

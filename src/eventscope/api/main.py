@@ -13,11 +13,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..db import get_engine, init_db, session_scope
 from ..extraction.schema import CATEGORIES
+from ..models import Event, RawEvent
 from .. import repository
 from .schemas import EventOut
 
@@ -89,6 +91,40 @@ def create_app(*, create_tables: bool = True) -> FastAPI:
         if event is None:
             raise HTTPException(404, "event not found")
         return EventOut.from_event(event)
+
+    @app.get("/admin/status")
+    def admin_status(session: Session = Depends(get_session)) -> dict:
+        total_raw = session.scalar(select(func.count()).select_from(RawEvent)) or 0
+        total_events = session.scalar(select(func.count()).select_from(Event)) or 0
+        active = session.scalar(
+            select(func.count()).select_from(Event).where(Event.status == "active")
+        ) or 0
+        no_coords = session.scalar(
+            select(func.count()).select_from(Event).where(
+                Event.lat.is_(None), Event.status == "active"
+            )
+        ) or 0
+
+        per_source = [
+            {"source": row[0], "count": row[1]}
+            for row in session.execute(
+                select(Event.source, func.count().label("n"))
+                .where(Event.status == "active")
+                .group_by(Event.source)
+                .order_by(text("n DESC"))
+            ).all()
+        ]
+
+        last_scraped = session.scalar(select(func.max(RawEvent.scraped_at)))
+
+        return {
+            "raw_events": total_raw,
+            "events_total": total_events,
+            "events_active": active,
+            "events_without_coords": no_coords,
+            "last_scraped_at": last_scraped,
+            "by_source": per_source,
+        }
 
     return app
 

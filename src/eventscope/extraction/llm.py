@@ -199,18 +199,29 @@ class GeminiExtractor(_LLMExtractor):  # pragma: no cover - live path only
         super().__init__(api_key, model)
 
     def _call(self, item: ScrapedItem) -> str | None:
+        import time
         url = f"{self._BASE}/{self.model}:generateContent?key={self.api_key}"
         payload = {
             "system_instruction": {"parts": [{"text": self._system()}]},
             "contents": [{"parts": [{"text": self._user(item)}]}],
             "generationConfig": {"response_mime_type": "application/json"},
         }
-        try:
-            with httpx.Client(timeout=30.0) as client:
-                resp = client.post(url, json=payload)
-                resp.raise_for_status()
-        except httpx.HTTPError as exc:
-            log.error("Gemini HTTP error: %s", exc)
+        for attempt in range(3):
+            try:
+                with httpx.Client(timeout=30.0) as client:
+                    resp = client.post(url, json=payload)
+                    if resp.status_code == 429:
+                        wait = 2 ** attempt * 5  # 5s, 10s, 20s
+                        log.warning("Gemini rate limited, retrying in %ss", wait)
+                        time.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+                    break
+            except httpx.HTTPError as exc:
+                log.error("Gemini HTTP error: %s", exc)
+                return None
+        else:
+            log.error("Gemini rate limit persisted after retries")
             return None
         try:
             return resp.json()["candidates"][0]["content"]["parts"][0]["text"]

@@ -1,0 +1,32 @@
+# fly.toml — EventScope deployment on Fly.io
+# Deploy: fly launch (first time) | fly deploy (updates)
+# Secrets: fly secrets set EVENTSCOPE_LLM_API_KEY=... EVENTSCOPE_DATABASE_URL=...
+
+app = "eventscope"
+primary_region = "gru"  # São Paulo — closest to GBA
+
+[build]
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[env]
+  EVENTSCOPE_PILOT_LAT = "-34.7998"
+  EVENTSCOPE_PILOT_LNG = "-58.3897"
+  EVENTSCOPE_PILOT_RADIUS_KM = "15"
+  EVENTSCOPE_GEOCODER_PROVIDER = "nominatim"
+  EVENTSCOPE_LLM_PROVIDER = "gemini"
+  EVENTSCOPE_LLM_MODEL = "gemini-2.0-flash"

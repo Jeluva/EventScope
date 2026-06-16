@@ -14,7 +14,8 @@ from .conftest import load_fixture
 def test_all_sources_registered():
     names = set(list_scrapers())
     assert {
-        "eventbrite", "venue_html", "government", "instagram_oembed", "almirante_brown"
+        "eventbrite", "venue_html", "government", "instagram_oembed",
+        "almirante_brown", "esteban_echeverria", "lomas_agenda", "quilmes",
     } <= names
 
 
@@ -111,6 +112,59 @@ def test_almirante_brown_parse():
 
 def test_almirante_brown_is_discovery():
     assert get_scraper("almirante_brown").discovery is True
+
+
+def test_lomas_agenda_parse():
+    raw = load_fixture("lomas_agenda.json")
+    items = get_scraper("lomas_agenda").parse(raw)
+    assert len(items) >= 2
+
+    first = items[0]
+    assert first.source == "gov:lomas"
+    assert first.external_id is not None
+    assert first.hints["date_text"]          # e.g. "2026-06-15 20hs"
+    assert first.hints["starts_at"] is not None   # parsed datetime
+    assert first.hints["location_text"] is not None
+
+
+def test_lomas_agenda_is_discovery():
+    assert get_scraper("lomas_agenda").discovery is True
+
+
+def test_quilmes_parse():
+    html = load_fixture("quilmes_noticias.html")
+    items = get_scraper("quilmes").parse(html)
+    assert len(items) == 3
+
+    feria = next(i for i in items if "FERIA" in i.raw_text)
+    assert feria.source == "gov:quilmes"
+    assert feria.external_id == "5001"
+    assert "20 DE JUNIO DE 2026" in feria.hints["date_text"].upper()
+
+    recital = next(i for i in items if "RECITAL" in i.raw_text)
+    assert recital.external_id == "5002"
+
+    # Source URL uses full absolute URL
+    assert feria.source_url.startswith("https://quilmes.gov.ar")
+
+
+def test_quilmes_is_discovery():
+    assert get_scraper("quilmes").discovery is True
+
+
+def test_esteban_echeverria_parse():
+    raw = load_fixture("esteban_echeverria_response.json")
+    items = get_scraper("esteban_echeverria").parse(raw)
+    assert len(items) >= 1
+    item = items[0]
+    assert item.source == "gov:echeverria"
+    assert item.external_id is not None
+    assert item.hints["date_text"]  # "2026-06-15"
+    assert item.raw_text
+
+
+def test_esteban_echeverria_is_discovery():
+    assert get_scraper("esteban_echeverria").discovery is True
 
 
 def test_harvest_instagram_permalinks_dedups():

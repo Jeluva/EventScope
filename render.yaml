@@ -34,7 +34,7 @@ services:
     runtime: python
     buildCommand: pip install -e .
     schedule: "0 7 * * *"   # todos los dias a las 7am UTC (4am Argentina)
-    command: sh -c "eventscope init-db && eventscope ingest && eventscope purge"
+    command: bash scripts/ingest.sh
     envVars:
       - key: EVENTSCOPE_DATABASE_URL
         fromDatabase:

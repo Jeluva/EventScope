@@ -1,0 +1,62 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploy: conectar el repo en render.com y hacer "New Blueprint Instance"
+
+services:
+  - type: web
+    name: eventscope-api
+    runtime: python
+    buildCommand: pip install -e .
+    startCommand: eventscope serve --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: EVENTSCOPE_DATABASE_URL
+        fromDatabase:
+          name: eventscope-db
+          property: connectionString
+      - key: EVENTSCOPE_LLM_PROVIDER
+        value: gemini
+      - key: EVENTSCOPE_LLM_MODEL
+        value: gemini-2.0-flash
+      - key: EVENTSCOPE_GEOCODER_PROVIDER
+        value: nominatim
+      - key: EVENTSCOPE_PILOT_LAT
+        value: "-34.7998"
+      - key: EVENTSCOPE_PILOT_LNG
+        value: "-58.3897"
+      - key: EVENTSCOPE_PILOT_RADIUS_KM
+        value: "15"
+      - key: EVENTSCOPE_LLM_API_KEY
+        sync: false   # se setea manualmente en el dashboard (secreto)
+      - key: PYTHONUTF8
+        value: "1"
+
+  - type: cron
+    name: eventscope-ingest
+    runtime: python
+    buildCommand: pip install -e .
+    schedule: "0 7 * * *"   # todos los dias a las 7am UTC (4am Argentina)
+    command: sh -c "eventscope init-db && eventscope ingest && eventscope purge"
+    envVars:
+      - key: EVENTSCOPE_DATABASE_URL
+        fromDatabase:
+          name: eventscope-db
+          property: connectionString
+      - key: EVENTSCOPE_LLM_PROVIDER
+        value: gemini
+      - key: EVENTSCOPE_LLM_MODEL
+        value: gemini-2.0-flash
+      - key: EVENTSCOPE_GEOCODER_PROVIDER
+        value: nominatim
+      - key: EVENTSCOPE_PILOT_LAT
+        value: "-34.7998"
+      - key: EVENTSCOPE_PILOT_LNG
+        value: "-58.3897"
+      - key: EVENTSCOPE_LLM_API_KEY
+        sync: false
+      - key: PYTHONUTF8
+        value: "1"
+
+databases:
+  - name: eventscope-db
+    databaseName: eventscope
+    user: eventscope
+    plan: free

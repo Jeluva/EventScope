@@ -1,3 +1,13 @@
+---
+title: EventScope
+emoji: 📍
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # EventScope
 
 > Descubrí lo que pasa cerca, antes de que pase.

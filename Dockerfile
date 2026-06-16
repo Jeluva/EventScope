@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -e .
 # Create data dir for SQLite (overridden by DATABASE_URL env in prod)
 RUN mkdir -p /app/data
 
-EXPOSE 8000
+# HuggingFace Spaces usa 7860 por defecto; PORT env lo overridea en otros hosts
+EXPOSE 7860
 
-CMD ["eventscope", "serve", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "eventscope init-db && eventscope serve --host 0.0.0.0 --port ${PORT:-7860}"]

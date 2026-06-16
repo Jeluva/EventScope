@@ -1,0 +1,35 @@
+name: Ingest diario
+
+on:
+  schedule:
+    - cron: "0 10 * * *"   # 7am Argentina (UTC-3)
+  workflow_dispatch:         # permite correrlo manualmente desde GitHub
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -e ".[dev]"
+
+      - name: Inicializar DB y correr ingest
+        env:
+          EVENTSCOPE_DATABASE_URL: ${{ secrets.EVENTSCOPE_DATABASE_URL }}
+          EVENTSCOPE_LLM_PROVIDER: gemini
+          EVENTSCOPE_LLM_MODEL: gemini-2.0-flash
+          EVENTSCOPE_LLM_API_KEY: ${{ secrets.EVENTSCOPE_LLM_API_KEY }}
+          EVENTSCOPE_GEOCODER_PROVIDER: nominatim
+          EVENTSCOPE_PILOT_LAT: "-34.7998"
+          EVENTSCOPE_PILOT_LNG: "-58.3897"
+          PYTHONUTF8: "1"
+        run: |
+          eventscope init-db
+          eventscope ingest
+          eventscope purge
